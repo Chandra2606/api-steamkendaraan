@@ -3,8 +3,8 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PaketCucianController;
 use App\Http\Controllers\PelangganController;
-use App\Http\Controllers\TempKeranjangController;
-use App\Http\Controllers\PenjualanController;
+use App\Http\Controllers\TempController;
+use App\Http\Controllers\TransaksiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,9 +23,9 @@ Route::controller(AuthController::class)->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
 
     // CRUD untuk barang
-    Route::apiResource('paketcucian', PaketCucianController::class);
+    Route::apiResource('paket', PaketCucianController::class);
     // Upload gambar barang berdasarkan kode barang
-    Route::put('/paketcucian/upload/{id_paket}', [PaketCucianController::class, 'uploadImage']);
+    Route::put('/paket/upload/{id_paket}', [PaketCucianController::class, 'uploadImage']);
 
     // CRUD untuk pelanggan
     Route::apiResource('pelanggan', PelangganController::class);
@@ -34,14 +34,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     // Routes untuk TempKeranjang (keranjang sementara)
-    Route::post('/insert-temp/{nameUser}', [TempKeranjangController::class, 'insertTemp']);
-    Route::get('/total-items/{nameUser}', [TempKeranjangController::class, 'getTotalItems']);
-    Route::get('/get-keranjang/{nameUser}', [TempKeranjangController::class, 'getKeranjang']);
-    Route::get('/total-pembayaran/{nameUser}', [TempKeranjangController::class, 'getTotalPembayaran']);
-    Route::delete('/hapus-item-keranjang/{nameUser}/{itemId}', [TempKeranjangController::class, 'destroy']);
+    Route::post('/insert-temp/{nameUser}', [TempController::class, 'insertTemp']);
+    Route::get('/total-items/{nameUser}', [TempController::class, 'getTotalItems']);
+    Route::get('/get-keranjang/{nameUser}', [TempController::class, 'getKeranjang']);
+    Route::get('/total-pembayaran/{nameUser}', [TempController::class, 'getTotalPembayaran']);
+    Route::delete('/hapus-item-keranjang/{nameUser}/{itemId}', [TempController::class, 'destroy']);
 
     // Routes untuk transaksi penjualan
-    Route::post('/simpan-transaksi', [PenjualanController::class, 'simpanTransaksi']);
-    Route::get('/laporan-penjualan', [PenjualanController::class, 'getLaporanPenjualan']);
-    Route::get('/download-laporan-penjualan', [PenjualanController::class, 'downloadLaporanPenjualan']);
+    Route::post('/simpan-transaksi', [TransaksiController::class, 'simpanTransaksi']);
+    Route::get('/laporan-transaksi', action: [TransaksiController::class, 'getLaporanTransaksi']);
+    Route::get('/download-laporan-transaksi', [TransaksiController::class, 'downloadLaporanTransaksi']);
 });

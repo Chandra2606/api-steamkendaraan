@@ -22,7 +22,7 @@ class TempController extends Controller
 
         $temp = new Temp();
         $temp->tempid_user = $dataUser->id;
-        $temp->tempid_paket = $request->paket;
+        $temp->tempid_paket = $request->id_paket;
         $temp->save();
 
         return response()->json([
@@ -43,7 +43,9 @@ class TempController extends Controller
             ], 404);
         }
 
-        $totalItems = Temp::where('tempid_user', $dataUser->id)->sum('tempid_paket');
+        $totalItems = Temp::where('tempid_user', $dataUser->id)
+            ->distinct('tempid_paket')
+            ->count('tempid_paket');
 
         return response()->json([
             "success" => true,
@@ -69,7 +71,7 @@ class TempController extends Controller
                 'paket_cucian.id_paket as id_paket',
                 'paket_cucian.nama_paket as nama_paket',
                 'paket_cucian.harga as harga',
-                'paket_cucian.gambar as gambar',
+                'paket_cucian.gambarpaket as gambar',
             ]);
 
         return response()->json([

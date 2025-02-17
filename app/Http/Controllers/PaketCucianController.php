@@ -37,7 +37,7 @@ class PaketCucianController extends Controller
             'nama_paket' => 'required',
             'jenis_kendaraan' => 'required',
             'jenis_cucian' => 'required',
-            'harga' => 'required',
+            'harga' => 'required|numeric',
         ]);
         $paketCucian = PaketCucian::create([
             'id_paket' => $request->id_paket,
@@ -117,31 +117,31 @@ class PaketCucianController extends Controller
     public function uploadImage(Request $request, $id_paket)
     {
         // Cek apakah barang ada
-        $paketCucian = PaketCucian::find($id_paket);
-        if (!$paketCucian) {
+        $paket = PaketCucian::find($id_paket);
+        if (!$paket) {
             return response()->json([
-                'message' => 'Data Barang tidak ditemukan'
+                'message' => 'Data paket tidak ditemukan'
             ], 404);
         }
 
         $validatedData = $request->validate([
-            'gambar' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'gambarpaket' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
         ], [
-            'gambar.required' => 'Gambar harus diunggah.',
-            'gambar.image' => 'File yang diunggah harus berupa gambar.',
-            'gambar.mimes' => 'Gambar harus memiliki format jpeg, png, jpg, atau gif.',
-            'gambar.max' => 'Ukuran gambar maksimal 5MB.',
+            'gambarpaket.required' => 'Gambar harus diunggah.',
+            'gambarpaket.image' => 'File yang diunggah harus berupa gambar.',
+            'gambarpaket.mimes' => 'Gambar harus memiliki format jpeg, png, jpg, atau gif.',
+            'gambarpaket.max' => 'Ukuran gambar maksimal 5MB.',
         ]);
 
-        if ($request->hasFile('gambar')) {
+        if ($request->hasFile('gambarpaket')) {
             // Hapus gambar lama jika ada
-            if ($paketCucian->gambarpaket && file_exists(public_path($paketCucian->gambarpaket))) {
-                unlink(public_path($paketCucian->gambarpaket));
-                unlink(public_path($paketCucian->gambarpaketthumb));
+            if ($paket->gambarpaket && file_exists(public_path($paket->gambarpaket))) {
+                unlink(public_path($paket->gambarpaket));
+                unlink(public_path($paket->gambarpaketthumb));
             }
 
             // Proses upload gambar baru
-            $file = $request->file('gambar');
+            $file = $request->file('gambarpaket');
             $fileName = time() . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('images'), $fileName);
 
@@ -171,13 +171,13 @@ class PaketCucianController extends Controller
             imagedestroy($resource);
 
             // Menyimpan path gambar di database
-            $paketCucian->gambarpaket = '/images/' . $fileName;
-            $paketCucian->gambarpaketthumb = '/images/thumb/' . $fileName_Thumb;
-            $paketCucian->save();
+            $paket->gambarpaket = '/images/' . $fileName;
+            $paket->gambarpaketthumb = '/images/thumb/' . $fileName_Thumb;
+            $paket->save();
 
             return response()->json([
                 'message' => 'Image Gambar Berhasil dilakukan',
-                'data' => $paketCucian
+                'data' => $paket
             ], 200);
         }
     }

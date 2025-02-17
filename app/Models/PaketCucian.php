@@ -8,6 +8,7 @@ class PaketCucian extends Model
 {
     protected $table = 'paket_cucian';
     protected $primaryKey = 'id_paket';
+    protected $keyType = 'string';
     public $timestamps = true;
 
     protected $fillable = [

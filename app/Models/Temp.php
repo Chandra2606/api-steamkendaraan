@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Temp extends Model
 {
     protected $table = 'temps';
-    protected $primaryKey = 'id_temp';
+    protected $primaryKey = 'id';
     public $timestamps = true;
     public $incrementing = false;
     protected $keyType = 'string';

@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PaketCucian;
 use App\Models\DetailTransaksi;
-use App\Models\TempKeranjangModel;
+use App\Models\Temp;
 use App\Models\Transaksi;
 use App\Models\User;
 use Carbon\Carbon;
@@ -27,28 +27,27 @@ class TransaksiController extends Controller
             $transaksi = Transaksi::create([
                 'faktur' => $faktur,
                 'tanggal' => now(),
-                'id_pelanggan' => $request->kodepelanggan,
+                'id_pelanggan' => $request->id_pelanggan,
                 'id_user' => $dataUser->id,
                 'total_bayar' => $request->totalbayar,
             ]);
 
             //ambil data tempkeranjang
-            $tempKeranjang = TempKeranjangModel::where('tempid_user', $dataUser->id)->get();
+            $tempKeranjang = Temp::where('tempid_user', $dataUser->id)->get();
 
             //simpan ke tabel penjualan_detail
             foreach ($tempKeranjang as $item) {
                 $barang = PaketCucian::where('id_paket', $item->tempid_paket)->first();
 
                 DetailTransaksi::create([
-                    'detailid_paket' => $item->tempid_paket,
-                    'qty' => $item->qty_2110003,
-                    'subtotal' => $barang->harga_2110003 * $item->qty_2110003,
                     'detailfaktur' => $faktur,
+                    'detailid_paket' => $item->tempid_paket,
+
                 ]);
             }
 
             //hapus data dari keranjang
-            TempKeranjangModel::where('userid_2110003', $dataUser->id)->delete();
+            Temp::where('tempid_user', $dataUser->id)->delete();
 
             DB::commit();
 
@@ -78,37 +77,119 @@ class TransaksiController extends Controller
                 DB::raw('BINARY transaksi.id_pelanggan')
             );
         })
-            ->whereBetween(DB::raw('DATE(tanggal)'), [$startDate, $endDate])
-            ->get([
+            ->join('detail_transaksis', 'transaksi.faktur', '=', 'detail_transaksis.detailfaktur')
+            ->join('paket_cucian', 'detail_transaksis.detailid_paket', '=', 'paket_cucian.id_paket')
+            ->whereBetween(DB::raw('DATE(transaksi.tanggal)'), [$startDate, $endDate])
+            ->select([
                 'transaksi.faktur',
                 'transaksi.tanggal',
                 'transaksi.total_bayar',
-                'pelanggan.nama_pelanggan'
-            ]);
+                'pelanggan.id_pelanggan',
+                'pelanggan.nama_pelanggan',
+                'pelanggan.alamat',
+                'pelanggan.no_hp',
+                'paket_cucian.nama_paket',
+                'paket_cucian.harga as harga_paket',
+            ])
+            ->orderBy('transaksi.tanggal', 'desc')
+            ->get()
+            ->groupBy('faktur')
+            ->map(function ($group) {
+                $firstItem = $group->first();
+                return [
+                    'faktur' => $firstItem->faktur,
+                    'tanggal' => $firstItem->tanggal,
+                    'total_bayar' => $firstItem->total_bayar,
+                    'pelanggan' => [
+                        'id' => $firstItem->id_pelanggan,
+                        'nama' => $firstItem->nama_pelanggan,
+                        'alamat' => $firstItem->alamat,
+                        'no_hp' => $firstItem->no_hp
+                    ],
+                    'items' => $group->map(function ($item) {
+                        return [
+                            'nama_paket' => $item->nama_paket,
+                            'harga' => $item->harga_paket,
+                        ];
+                    })
+                ];
+            })->values();
 
         return response()->json([
             'success' => true,
             'laporan' => $laporan,
         ]);
     }
-
-    public function downloadLaporanPenjualan(Request $request)
+    public function downloadLaporanTransaksi(Request $request)
     {
-        $startDate = Carbon::parse($request->query('start'))->format('Y-m-d');
-        $endDate = Carbon::parse($request->query('end'))->format('Y-m-d');
+        try {
+            $startDate = Carbon::parse($request->query('start'))->format('Y-m-d');
+            $endDate = Carbon::parse($request->query('end'))->format('Y-m-d');
 
-        $laporan = Transaksi::join('pelanggan', function ($join) {
-            $join->on(
-                DB::raw('BINARY pelanggan.id_pelanggan'),
-                '=',
-                DB::raw('BINARY transaksi.id_pelanggan')
-            );
-        })
-            ->whereBetween(DB::raw('DATE(tanggal)'), [$startDate, $endDate])
-            ->get(['transaksi.faktur', 'transaksi.tanggal', 'transaksi.total_bayar', 'pelanggan.nama_pelanggan']);
+            $laporan = Transaksi::join('pelanggan', function ($join) {
+                $join->on(
+                    DB::raw('BINARY pelanggan.id_pelanggan'),
+                    '=',
+                    DB::raw('BINARY transaksi.id_pelanggan')
+                );
+            })
+                ->join('detail_transaksis', 'transaksi.faktur', '=', 'detail_transaksis.detailfaktur')
+                ->join('paket_cucian', 'detail_transaksis.detailid_paket', '=', 'paket_cucian.id_paket')
+                ->whereBetween(DB::raw('DATE(transaksi.tanggal)'), [$startDate, $endDate])
+                ->select([
+                    'transaksi.faktur',
+                    'transaksi.tanggal',
+                    'transaksi.total_bayar',
+                    'pelanggan.id_pelanggan',
+                    'pelanggan.nama_pelanggan',
+                    'pelanggan.alamat',
+                    'pelanggan.no_hp',
+                    'paket_cucian.nama_paket',
+                    'paket_cucian.harga as harga_paket',
+                ])
+                ->orderBy('transaksi.tanggal', 'desc')
+                ->get();
 
-        $pdf = PDF::loadView('laporan_transaksi_pdf', compact('laporan', 'startDate', 'endDate'));
+            $groupedLaporan = $laporan->groupBy('faktur')
+                ->map(function ($group) {
+                    $firstItem = $group->first();
+                    return [
+                        'faktur' => $firstItem->faktur,
+                        'tanggal' => $firstItem->tanggal,
+                        'total_bayar' => $firstItem->total_bayar,
+                        'pelanggan' => [
+                            'id' => $firstItem->id_pelanggan,
+                            'nama' => $firstItem->nama_pelanggan,
+                            'alamat' => $firstItem->alamat,
+                            'no_hp' => $firstItem->no_hp
+                        ],
+                        'items' => $group->map(function ($item) {
+                            return [
+                                'nama_paket' => $item->nama_paket,
+                                'harga' => $item->harga_paket,
+                            ];
+                        })->values()->toArray()
+                    ];
+                })->values();
 
-        return $pdf->download("laporan_penjualan_{$startDate}_{$endDate}.pdf");
+            $data = [
+                'laporan' => $groupedLaporan,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'totalPendapatan' => $groupedLaporan->sum('total_bayar'),
+                'totalTransaksi' => $groupedLaporan->count(),
+            ];
+
+            $pdf = PDF::loadView('laporan_transaksi_pdf', $data);
+            $pdf->setPaper('A4', 'portrait');
+
+            return $pdf->download("laporan_transaksi_{$startDate}_{$endDate}.pdf");
+        } catch (\Exception $e) {
+            \Log::error('PDF Generation Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghasilkan PDF: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
